@@ -29,6 +29,11 @@ func Setup(app *fiber.App) {
 	authService := services.NewAuthService(userRepo, resetRepo)
 	authCtrl := controllers.NewAuthController(authService)
 
+	// Dependency Injection for Category
+	categoryRepo := repositories.NewCategoryRepository(database.DB)
+	categoryService := services.NewCategoryService(categoryRepo, userRepo)
+	categoryCtrl := controllers.NewCategoryController(categoryService)
+
 	// API Route Group
 	api := app.Group("/api")
 
@@ -52,4 +57,11 @@ func Setup(app *fiber.App) {
 	protected.Post("/user/photo", authCtrl.UploadPhoto)
 	protected.Delete("/user/photo", authCtrl.DeletePhoto)
 	protected.Post("/user/fcm-token", authCtrl.UpdateFcmToken)
+
+	// Categories CRUD
+	protected.Get("/categories", categoryCtrl.Index)
+	protected.Post("/categories", categoryCtrl.Store)
+	protected.Get("/categories/:id", categoryCtrl.Show)
+	protected.Put("/categories/:id", categoryCtrl.Update)
+	protected.Delete("/categories/:id", categoryCtrl.Destroy)
 }
