@@ -4,6 +4,9 @@ import (
 	"log"
 
 	"finance-app-backend/internal/config"
+	"finance-app-backend/internal/database"
+	"finance-app-backend/internal/database/migrations"
+	"finance-app-backend/internal/database/seeders"
 	"finance-app-backend/internal/routes"
 
 	"github.com/gofiber/fiber/v2"
@@ -16,9 +19,24 @@ func main() {
 	// Load config
 	config.Load()
 
-	// Connect to database
-	// NOTE: Uncomment database.Connect() once DB credentials are set up in .env
-	// database.Connect()
+	// Connect to database if configured
+	if config.AppConfig.DbHost != "" {
+		database.Connect()
+
+		if config.AppConfig.AutoMigrate == "true" {
+			log.Println("AUTO_MIGRATE=true: Running database migrations...")
+			if err := migrations.Migrate(database.DB); err != nil {
+				log.Printf("Auto migration error: %v", err)
+			}
+		}
+
+		if config.AppConfig.AutoSeed == "true" {
+			log.Println("AUTO_SEED=true: Running database seeders...")
+			if err := seeders.RunAll(database.DB, ""); err != nil {
+				log.Printf("Auto seed error: %v", err)
+			}
+		}
+	}
 
 	// Initialize Fiber App
 	app := fiber.New(fiber.Config{
