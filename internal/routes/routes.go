@@ -4,6 +4,7 @@ import (
 	"finance-app-backend/internal/controllers"
 	"finance-app-backend/internal/database"
 	"finance-app-backend/internal/middlewares"
+	"finance-app-backend/internal/pkg/fcm"
 	"finance-app-backend/internal/pkg/response"
 	"finance-app-backend/internal/repositories"
 	"finance-app-backend/internal/services"
@@ -49,6 +50,21 @@ func Setup(app *fiber.App) {
 	budgetService := services.NewBudgetService(budgetRepo, categoryRepo, database.DB)
 	budgetCtrl := controllers.NewBudgetController(budgetService)
 
+	// FCM Service & Xendit Client
+	fcmSvc := fcm.NewFCMService()
+	xenditSvc := services.NewXenditService()
+
+	// Notification Dependency Injection
+	noteRepo := repositories.NewNotificationRepository(database.DB)
+	noteService := services.NewNotificationService(noteRepo)
+	noteCtrl := controllers.NewNotificationController(noteService)
+
+	// Subscription Dependency Injection
+	subRepo := repositories.NewSubscriptionRepository(database.DB)
+	subService := services.NewSubscriptionService(subRepo, userRepo, noteRepo, xenditSvc, fcmSvc)
+	subCtrl := controllers.NewSubscriptionController(subService)
+	webhookCtrl := controllers.NewXenditWebhookController(subService)
+
 	// Dependency Injection for Dashboard, Reports & Exports
 	reportService := services.NewReportService(database.DB, walletRepo, txRepo)
 	dashboardCtrl := controllers.NewDashboardController(reportService)
@@ -70,6 +86,9 @@ func Setup(app *fiber.App) {
 	api.Post("/password/verify-otp", authCtrl.VerifyOtp)
 	api.Post("/password/reset", authCtrl.ResetPassword)
 
+	// Public Webhooks
+	api.Post("/webhooks/xendit/invoice", webhookCtrl.HandleWebhook)
+
 	// Protected Routes (JWT Guarded)
 	protected := api.Group("", middlewares.JWTAuth())
 
@@ -80,6 +99,21 @@ func Setup(app *fiber.App) {
 	protected.Post("/user/photo", authCtrl.UploadPhoto)
 	protected.Delete("/user/photo", authCtrl.DeletePhoto)
 	protected.Post("/user/fcm-token", authCtrl.UpdateFcmToken)
+
+	// Subscription
+	protected.Get("/subscription/plans", subCtrl.Plans)
+	protected.Get("/subscription/status", subCtrl.Status)
+	protected.Post("/subscription/pay/qris", subCtrl.PayQris)
+	protected.Post("/subscription/pay/va", subCtrl.PayVa)
+	protected.Post("/subscription/pay/ewallet", subCtrl.PayEwallet)
+	protected.Get("/subscription/check/:id", subCtrl.CheckStatus)
+	protected.Get("/subscription/history", subCtrl.History)
+
+	// Notifications
+	protected.Get("/notifications", noteCtrl.Index)
+	protected.Get("/notifications/unread-count", noteCtrl.UnreadCount)
+	protected.Post("/notifications/read-all", noteCtrl.MarkAllAsRead)
+	protected.Post("/notifications/:id/read", noteCtrl.MarkAsRead)
 
 	// Dashboard
 	protected.Get("/dashboard", dashboardCtrl.Index)
