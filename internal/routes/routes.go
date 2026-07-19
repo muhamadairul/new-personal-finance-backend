@@ -49,6 +49,14 @@ func Setup(app *fiber.App) {
 	budgetService := services.NewBudgetService(budgetRepo, categoryRepo, database.DB)
 	budgetCtrl := controllers.NewBudgetController(budgetService)
 
+	// Dependency Injection for Dashboard, Reports & Exports
+	reportService := services.NewReportService(database.DB, walletRepo, txRepo)
+	dashboardCtrl := controllers.NewDashboardController(reportService)
+	reportCtrl := controllers.NewReportController(reportService)
+
+	exportService := services.NewExportService(database.DB, userRepo, txRepo)
+	exportCtrl := controllers.NewExportController(exportService, authService)
+
 	// API Route Group
 	api := app.Group("/api")
 
@@ -72,6 +80,17 @@ func Setup(app *fiber.App) {
 	protected.Post("/user/photo", authCtrl.UploadPhoto)
 	protected.Delete("/user/photo", authCtrl.DeletePhoto)
 	protected.Post("/user/fcm-token", authCtrl.UpdateFcmToken)
+
+	// Dashboard
+	protected.Get("/dashboard", dashboardCtrl.Index)
+
+	// Reports
+	protected.Get("/reports/monthly", reportCtrl.Monthly)
+	protected.Get("/reports/category", reportCtrl.Category)
+
+	// Exports (Pro only)
+	protected.Get("/export/excel", exportCtrl.Excel)
+	protected.Get("/export/pdf", exportCtrl.PDF)
 
 	// Categories CRUD
 	protected.Get("/categories", categoryCtrl.Index)
