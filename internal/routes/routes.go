@@ -34,6 +34,21 @@ func Setup(app *fiber.App) {
 	categoryService := services.NewCategoryService(categoryRepo, userRepo)
 	categoryCtrl := controllers.NewCategoryController(categoryService)
 
+	// Dependency Injection for Wallet
+	walletRepo := repositories.NewWalletRepository(database.DB)
+	walletService := services.NewWalletService(walletRepo, userRepo)
+	walletCtrl := controllers.NewWalletController(walletService)
+
+	// Dependency Injection for Transaction
+	txRepo := repositories.NewTransactionRepository(database.DB)
+	txService := services.NewTransactionService(txRepo, walletRepo, categoryRepo, database.DB)
+	txCtrl := controllers.NewTransactionController(txService)
+
+	// Dependency Injection for Budget
+	budgetRepo := repositories.NewBudgetRepository(database.DB)
+	budgetService := services.NewBudgetService(budgetRepo, categoryRepo, database.DB)
+	budgetCtrl := controllers.NewBudgetController(budgetService)
+
 	// API Route Group
 	api := app.Group("/api")
 
@@ -64,4 +79,25 @@ func Setup(app *fiber.App) {
 	protected.Get("/categories/:id", categoryCtrl.Show)
 	protected.Put("/categories/:id", categoryCtrl.Update)
 	protected.Delete("/categories/:id", categoryCtrl.Destroy)
+
+	// Wallets CRUD
+	protected.Get("/wallets", walletCtrl.Index)
+	protected.Post("/wallets", walletCtrl.Store)
+	protected.Get("/wallets/:id", walletCtrl.Show)
+	protected.Put("/wallets/:id", walletCtrl.Update)
+	protected.Delete("/wallets/:id", walletCtrl.Destroy)
+
+	// Transactions CRUD
+	protected.Get("/transactions", txCtrl.Index)
+	protected.Post("/transactions", txCtrl.Store)
+	protected.Get("/transactions/:id", txCtrl.Show)
+	protected.Put("/transactions/:id", txCtrl.Update)
+	protected.Delete("/transactions/:id", txCtrl.Destroy)
+
+	// Budgets CRUD
+	protected.Get("/budgets", budgetCtrl.Index)
+	protected.Post("/budgets", budgetCtrl.Store)
+	protected.Get("/budgets/:id", budgetCtrl.Show)
+	protected.Put("/budgets/:id", budgetCtrl.Update)
+	protected.Delete("/budgets/:id", budgetCtrl.Destroy)
 }
